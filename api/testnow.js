@@ -1,12 +1,8 @@
-// Load environment variables from the .env file
-require('dotenv').config();
-
-const nodemailer = require("nodemailer");
-const { PrismaClient } = require("@prisma/client");
+import { PrismaClient } from "@prisma/client";
+import nodemailer from "nodemailer";
 
 const prisma = new PrismaClient();
 
-// Create transporter for sending emails using Gmail and environment variables
 const transporter = nodemailer.createTransport({
   service: "gmail",
   auth: {
@@ -15,7 +11,6 @@ const transporter = nodemailer.createTransport({
   },
 });
 
-// Create the mail options
 const createMailOptions = (toEmail) => ({
   from: "Analytics Diary <pranavtavarej@gmail.com>",
   to: toEmail,
@@ -43,7 +38,7 @@ The Analytics Diary Team
     <p>It’s a fresh start — the perfect time to reflect, plan, and track your progress. Your Analytics Diary is ready for today’s entry.</p>
 
     <p>🖊 <strong>Start writing now:</strong><br>
-    👉 <a href="https://diary-analy.vercel.app/" target="_blank" style="color:#1a73e8; font-weight:bold;">Log Today’s Entry</a></p>
+    👉 <a href="https://diary-analy.vercel.app/" target="_blank">Log Today’s Entry</a></p>
 
     <h3>Why log your day?</h3>
     <ul>
@@ -61,16 +56,12 @@ The Analytics Diary Team
   `,
 });
 
-// Function to send emails to all users
-async function sendEmailsToAllUsers() {
-  console.log("🚀 Sending daily reminder emails...");
-
+export default async function handler(req, res) {
   try {
     const users = await prisma.user.findMany();
 
-    if (users.length === 0) {
-      console.log("⚠ No users found in the database.");
-      return;
+    if (!users.length) {
+      return res.status(404).json({ message: "No users found" });
     }
 
     for (const user of users) {
@@ -79,13 +70,11 @@ async function sendEmailsToAllUsers() {
       console.log(`📩 Email sent to ${user.email}`);
     }
 
-    console.log("✅ All reminder emails sent successfully.");
+    return res.status(200).json({ message: "Emails sent successfully" });
   } catch (error) {
-    console.error("❌ Error sending emails:", error);
+    console.error("Error sending emails:", error);
+    return res.status(500).json({ error: "Error sending emails" });
   } finally {
     await prisma.$disconnect();
   }
 }
-
-// Run it immediately
-sendEmailsToAllUsers();
