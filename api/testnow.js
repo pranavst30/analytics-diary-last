@@ -1,16 +1,21 @@
-import { PrismaClient } from "@prisma/client";
-import nodemailer from "nodemailer";
+// Load environment variables from the .env file
+require('dotenv').config();
+
+const nodemailer = require("nodemailer");
+const { PrismaClient } = require("@prisma/client");
 
 const prisma = new PrismaClient();
 
+// Create transporter for sending emails using Gmail and environment variables
 const transporter = nodemailer.createTransport({
   service: "gmail",
   auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS,
+    user: process.env.EMAIL_USER, // Using environment variable for email
+    pass: process.env.EMAIL_PASS, // Using environment variable for app password
   },
 });
 
+// Function to create the mail options
 const createMailOptions = (toEmail) => ({
   from: "Analytics Diary <pranavtavarej@gmail.com>",
   to: toEmail,
@@ -38,7 +43,7 @@ The Analytics Diary Team
     <p>It’s a fresh start — the perfect time to reflect, plan, and track your progress. Your Analytics Diary is ready for today’s entry.</p>
 
     <p>🖊 <strong>Start writing now:</strong><br>
-    👉 <a href="https://diary-analy.vercel.app/" target="_blank">Log Today’s Entry</a></p>
+    👉 <a href="https://diary-analy.vercel.app/" target="_blank" style="color:#1a73e8; font-weight:bold;">Log Today’s Entry</a></p>
 
     <h3>Why log your day?</h3>
     <ul>
@@ -56,12 +61,15 @@ The Analytics Diary Team
   `,
 });
 
-export default async function handler(req, res) {
+async function sendEmailsToAllUsers() {
+  console.log("🚀 Sending daily reminder emails...");
+
   try {
     const users = await prisma.user.findMany();
 
-    if (!users.length) {
-      return res.status(404).json({ message: "No users found" });
+    if (users.length === 0) {
+      console.log("⚠ No users found in the database.");
+      return;
     }
 
     for (const user of users) {
@@ -70,11 +78,22 @@ export default async function handler(req, res) {
       console.log(`📩 Email sent to ${user.email}`);
     }
 
-    return res.status(200).json({ message: "Emails sent successfully" });
+    console.log("✅ All reminder emails sent successfully.");
   } catch (error) {
-    console.error("Error sending emails:", error);
-    return res.status(500).json({ error: "Error sending emails" });
-  } finally {
-    await prisma.$disconnect();
+    console.error("❌ Error sending emails:", error);
+  }
+}
+
+// API route that will send the email when triggered
+export default async function handler(req, res) {
+  if (req.method === "GET") {
+    try {
+      await sendEmailsToAllUsers();
+      res.status(200).json({ message: "Emails sent successfully!" });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to send emails", error: error.message });
+    }
+  } else {
+    res.status(405).json({ message: "Method Not Allowed" });
   }
 }
