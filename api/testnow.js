@@ -3,7 +3,6 @@ require('dotenv').config();
 
 const nodemailer = require("nodemailer");
 const { PrismaClient } = require("@prisma/client");
-const moment = require("moment-timezone");
 
 const prisma = new PrismaClient();
 
@@ -11,12 +10,12 @@ const prisma = new PrismaClient();
 const transporter = nodemailer.createTransport({
   service: "gmail",
   auth: {
-    user: process.env.EMAIL_USER, // Using environment variable for email
-    pass: process.env.EMAIL_PASS, // Using environment variable for app password
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS,
   },
 });
 
-// Function to create the mail options
+// Create the mail options
 const createMailOptions = (toEmail) => ({
   from: "Analytics Diary <pranavtavarej@gmail.com>",
   to: toEmail,
@@ -62,8 +61,6 @@ The Analytics Diary Team
   `,
 });
 
-let lastSentDate = null;
-
 // Function to send emails to all users
 async function sendEmailsToAllUsers() {
   console.log("🚀 Sending daily reminder emails...");
@@ -85,33 +82,10 @@ async function sendEmailsToAllUsers() {
     console.log("✅ All reminder emails sent successfully.");
   } catch (error) {
     console.error("❌ Error sending emails:", error);
+  } finally {
+    await prisma.$disconnect();
   }
 }
 
-// 🔁 Check every 30 seconds between 2:00 PM and 4:01 PM IST
-setInterval(async () => {
-  const now = moment().tz("Asia/Kolkata");
-  const hour = now.hour();
-  const minute = now.minute();
-  const today = now.format("YYYY-MM-DD");
-
-  const isInWindow =
-    (hour > 14 && hour < 16) ||                 // 15:00 to 15:59
-    (hour === 14 && minute >= 0) ||             // 14:00 to 14:59
-    (hour === 16 && minute <= 1);               // 16:00 and 16:01
-
-  const alreadySentToday = lastSentDate === today;
-
-  if (isInWindow && !alreadySentToday) {
-    console.log("⏰ Time matched (between 2:00 PM – 4:01 PM IST). Sending emails...");
-    await sendEmailsToAllUsers();
-    lastSentDate = today;
-  } else if (!isInWindow && alreadySentToday) {
-    if (hour > 16 || (hour === 16 && minute > 1)) {
-      lastSentDate = null;
-      console.log("🔄 Time window over, reset for next day.");
-    }
-  }
-}, 30000); // Runs every 30 seconds
-
-console.log("🔁 Email reminder loop is running. Waiting for 2:00 PM – 4:01 PM IST...");
+// Run it immediately
+sendEmailsToAllUsers();
